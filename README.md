@@ -12,7 +12,9 @@ pip install -r requirements.txt
 
 ## Usage:
 
-A number of environment variables need to be set, set them in `validator/.env_external` and rename the file to `validator/.env`. Then for computing disregarded utility of a solution:
+A number of environment variables need to be set, set them in `validator/env` and rename the file to `validator/.env`. 
+
+Then for computing disregarded utility of a solution:
 
 ```bash
 python -m validator.du auction_id
