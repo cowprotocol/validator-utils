@@ -104,6 +104,9 @@ def create_solution(instance, solution_info, solution_index):
     solution['ref_token'] = NATIVE_TOKEN
     for eo in solution_info['orders']:
         o_id = eo['id']
+        # Because solution endpoint reports also liquidity orders and problem endpoint does not ?
+        if o_id not in instance['orders'].keys():
+            continue
         o = instance['orders'][o_id]
         p_b = int(solution_info['clearingPrices'][o['buy_token']])
         p_s = int(solution_info['clearingPrices'][o['sell_token']])
@@ -149,8 +152,8 @@ async def fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook):
     
     return instance, solutions
 
-async def main(auction_id, output_dir):
-    instance, solutions = await fetch_instance_and_solutions(auction_id)
+async def main(auction_id, output_dir, fetch_amms_from_lpbook):
+    instance, solutions = await fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook)
     with open(output_dir / f'instance_{auction_id}.json', 'w+') as f:
         json.dump(instance, f, indent=2)
     for solution in solutions:
@@ -178,10 +181,17 @@ if __name__ == '__main__':
         help="Path to directory to store instance and solution files."
     )
 
+    parser.add_argument(
+        '--use_lpbook',
+        type=bool,
+        default=False,
+        help="Fetch amm's from lpbook."
+    )
+
     args = parser.parse_args()
 
     auction_id = args.auction_id
     output_dir = args.output_dir
-  
-    asyncio.run(main(auction_id, output_dir))
+    fetch_amms_from_lpbook = args.use_lpbook
+    asyncio.run(main(auction_id, output_dir, fetch_amms_from_lpbook))
 

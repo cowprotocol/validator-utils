@@ -134,8 +134,8 @@ def compute_order_surplus(o_id, original_instance, solution):
             / int(o['sell_amount'])
     else:
         token = o['sell_token']
-        surplus = exec_buy_amount * int(o['exec_sell_amount']) \
-            / int(o['exec_buy_amount']) - exec_sell_amount
+        surplus = exec_buy_amount * int(o['sell_amount']) \
+            / int(o['buy_amount']) - exec_sell_amount
 
     return token, surplus
 
