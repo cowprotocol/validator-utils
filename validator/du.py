@@ -156,6 +156,10 @@ def compute_order_disregarded_utility(o_id, updated_instance, submitted_solution
 
     updated_o = updated_instance['orders'][o_id]
     if updated_o['is_sell_order']:
+        #print("-------------------")
+        #print(o_id)
+        #print(sell_amount_s, buy_amount_s, xrate_s)
+        #print(sell_amount_f, buy_amount_f, xrate_f)
         sell_amount_at_xrate_s = max(0, sell_amount_s - sell_amount_f)
         buy_amount_at_xrate_s = sell_amount_at_xrate_s / xrate_s if sell_amount_at_xrate_s != 0 else 0
         buy_amount_at_xrate_f = sell_amount_f / xrate_f if sell_amount_f != 0 else 0

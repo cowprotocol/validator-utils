@@ -43,8 +43,8 @@ async def get_token_info_from_dune(token_addresses, external_prices):
         } for t in data
     }
 
-async def create_token_info(order_info, external_prices):
-    token_addresses = list({o['buyToken'] for o in order_info} | {o['sellToken'] for o in order_info})
+async def create_token_info(orders_info, external_prices):
+    token_addresses = list({o['buyToken'] for o in orders_info} | {o['sellToken'] for o in orders_info})
  
     if NATIVE_TOKEN not in token_addresses:
         token_addresses.append(NATIVE_TOKEN)
@@ -70,9 +70,9 @@ def create_order_info(order):
         'has_atomic_execution': order['isLiquidityOrder']   # FIXME: we don't have this info yet, playing safe for now
     }
 
-def create_orders(order_info):
+def create_orders(orders_info):
     orders = {}
-    for order in order_info:
+    for order in orders_info:
         o_id, o = create_order_info(order)
         orders[o_id] = o
     return orders
@@ -84,11 +84,12 @@ def create_metadata(gas_price, txhash):
         "txhash": txhash 
     }
 
-async def create_instance(order_info, solver_competition_info):
+async def create_instance(orders_info, solver_competition_info):
+
     gas_price = solver_competition_info['gasPrice']
     return {
-        'tokens': await create_token_info(order_info, solver_competition_info['auction']['prices']),
-        'orders': create_orders(order_info),
+        'tokens': await create_token_info(orders_info, solver_competition_info['auction']['prices']),
+        'orders': create_orders(orders_info),
         'amms': {}, # will be populated by lpbook amms later
         'metadata': create_metadata(gas_price, solver_competition_info['transactionHash'])
     }
@@ -104,9 +105,6 @@ def create_solution(instance, solution_info, solution_index):
     solution['ref_token'] = NATIVE_TOKEN
     for eo in solution_info['orders']:
         o_id = eo['id']
-        # Because solution endpoint reports also liquidity orders and problem endpoint does not ?
-        if o_id not in instance['orders'].keys():
-            continue
         o = instance['orders'][o_id]
         p_b = int(solution_info['clearingPrices'][o['buy_token']])
         p_s = int(solution_info['clearingPrices'][o['sell_token']])
@@ -124,10 +122,14 @@ def create_solution(instance, solution_info, solution_index):
 async def fetch_instance(solver_competition_info, fetch_amms_from_lpbook):
     txhash = solver_competition_info['transactionHash']
     orderbook_url = os.getenv('ORDERBOOK_URL')
-    url = orderbook_url + f'/api/v1/transactions/{txhash}/orders'
-    order_info = requests.get(url).json()
+    
+    orders_info = []
+    for oid in solver_competition_info['auction']['orders']:
+        url = orderbook_url + f'/api/v1/orders/{oid}'
+        order_info = requests.get(url).json()
+        orders_info.append(order_info)
 
-    instance = await create_instance(order_info, solver_competition_info)
+    instance = await create_instance(orders_info, solver_competition_info)
 
     if fetch_amms_from_lpbook:
         block_number = get_block_number_from_txhash(txhash)
