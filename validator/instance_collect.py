@@ -140,10 +140,16 @@ async def fetch_instance(solver_competition_info, fetch_amms_from_lpbook):
     return instance
 
 
+def is_txhash(auction_id_or_txhash):
+    return isinstance(auction_id_or_txhash, str) and len(auction_id_or_txhash)>2 and auction_id_or_txhash[:2]=='0x'
+
 @traced(logger, "Fetching instance and solutions.")
-async def fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook):
+async def fetch_instance_and_solutions(auction_id_or_txhash, fetch_amms_from_lpbook):
     orderbook_url = os.getenv('ORDERBOOK_URL')
-    solver_competition_url = orderbook_url + f'/api/v1/solver_competition/{auction_id}'
+    if is_txhash(auction_id_or_txhash):
+        solver_competition_url = orderbook_url + f'/api/v1/solver_competition/by_tx_hash/{auction_id_or_txhash}'    
+    else:
+        solver_competition_url = orderbook_url + f'/api/v1/solver_competition/{auction_id_or_txhash}'
     solver_competition_info = requests.get(solver_competition_url).json()
 
     instance = await fetch_instance(solver_competition_info, fetch_amms_from_lpbook)
@@ -154,14 +160,14 @@ async def fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook):
     
     return instance, solutions
 
-async def main(auction_id, output_dir, fetch_amms_from_lpbook):
-    instance, solutions = await fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook)
-    with open(output_dir / f'instance_{auction_id}.json', 'w+') as f:
+async def main(auction_id_or_txhash, output_dir, fetch_amms_from_lpbook):
+    instance, solutions = await fetch_instance_and_solutions(auction_id_or_txhash, fetch_amms_from_lpbook)
+    with open(output_dir / f'instance_{auction_id_or_txhash}.json', 'w+') as f:
         json.dump(instance, f, indent=2)
     for solution in solutions:
         with open(
             output_dir / 
-            f'solution_{auction_id}_{solution["metadata"]["index"]}_{solution["metadata"]["solver"]}.json',
+            f'solution_{auction_id_or_txhash}_{solution["metadata"]["index"]}_{solution["metadata"]["solver"]}.json',
             'w+'
         ) as f:
             json.dump(solution, f, indent=2)
@@ -172,9 +178,9 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        'auction_id',
-        type=int,
-        help="Auction id."
+        'auction_id_or_txhash',
+        type=str,
+        help="Auction id or transaction hash."
     )
 
     parser.add_argument(
@@ -192,8 +198,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    auction_id = args.auction_id
+    auction_id_or_txhash = args.auction_id_or_txhash
     output_dir = args.output_dir
     fetch_amms_from_lpbook = args.use_lpbook
-    asyncio.run(main(auction_id, output_dir, fetch_amms_from_lpbook))
+    asyncio.run(main(auction_id_or_txhash, output_dir, fetch_amms_from_lpbook))
 

@@ -6,6 +6,7 @@ import logging
 import os
 from copy import deepcopy
 from math import ceil
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
@@ -279,16 +280,19 @@ def print_disregarded_utility(solution, solution_dus, instance):
     print(tab)
 
 
-async def compute_auction_disregarded_utility_info(auction_id, settled_orders_only):
-    instance, solutions = await fetch_instance_and_solutions(auction_id, fetch_amms_from_lpbook=True)
+async def compute_auction_disregarded_utility_info(auction_id_or_txhash, settled_orders_only, save_updated_instance):
+    instance, solutions = await fetch_instance_and_solutions(auction_id_or_txhash, fetch_amms_from_lpbook=True)
     winning_solution = solutions[-1]
     updated_instance = await create_updated_instance(instance, winning_solution)
+    if save_updated_instance is not None:
+        with open(save_updated_instance, "w+") as f:
+            json.dump(updated_instance, f, indent=2)
     du = await compute_disregarded_utility_info(instance, updated_instance, winning_solution, settled_orders_only)
     return du, instance, winning_solution
 
 
-async def main(auction_id, settled_orders_only):
-    du, instance, winning_solution = await compute_auction_disregarded_utility_info(auction_id, settled_orders_only)
+async def main(auction_id_or_txhash, settled_orders_only, save_updated_instance):
+    du, instance, winning_solution = await compute_auction_disregarded_utility_info(auction_id_or_txhash, settled_orders_only, save_updated_instance)
     print_disregarded_utility(winning_solution, du, instance)
 
 if __name__ == '__main__':
@@ -298,9 +302,9 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        'auction_id',
-        type=int,
-        help="Auction id."
+        'auction_id_or_txhash',
+        type=str,
+        help="Auction id or transaction hash."
     )
 
     parser.add_argument(
@@ -310,12 +314,18 @@ if __name__ == '__main__':
         default=True
     )
 
+    parser.add_argument(
+        '--save_updated_instance',
+        type=Path,
+        help="Name of file to dump updated instance to for debugging."
+    )
     
     args = parser.parse_args()
 
-    auction_id = args.auction_id
+    auction_id_or_txhash = args.auction_id_or_txhash
     settled_orders_only = args.settled_orders_only
+    save_updated_instance = args.save_updated_instance
 
     logging.config.fileConfig(fname='logging.conf', disable_existing_loggers=True)
 
-    asyncio.run(main(auction_id, settled_orders_only))
+    asyncio.run(main(auction_id_or_txhash, settled_orders_only, save_updated_instance))
